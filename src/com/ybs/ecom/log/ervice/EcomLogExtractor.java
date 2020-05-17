@@ -1,5 +1,6 @@
 package com.ybs.ecom.log.ervice;
 
+import java.awt.BorderLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -11,8 +12,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -26,8 +31,9 @@ import javax.swing.JTextField;
 
 public class EcomLogExtractor {
 
-	String errorMsg;
+	String errorMsg = null;
 	File file;
+	
 	private static final int TXT_AREA_ROWS = 10;
 	private static final int TXT_AREA_COLS = 50;
 
@@ -73,40 +79,67 @@ public class EcomLogExtractor {
 		constr.gridx = 0;
 		constr.gridy = 0;
 
-		JLabel label1 = new JLabel("");
+		JLabel label1 = new JLabel("Log file selected ::");
 		JLabel labelVal1 = new JLabel("");
 		JLabel label2 = new JLabel("Enter customer\\account\\partsysid ::");
-		JTextField txtVal2 = new JTextField(20);
-		JLabel label3 = new JLabel("Enter session id ::");
-		JTextField txtVal3 = new JTextField(20);
+		JTextField txtVal2 = new JTextField(12);
+
 		JLabel label4 = new JLabel("");
 		JLabel labelVal4 = new JLabel("");
+
+		JLabel label5 = new JLabel("");
+		JLabel labelVal5 = new JLabel("");
+
+		JLabel label6 = new JLabel("");
+		JLabel labelVal6 = new JLabel("");
+
 		JButton readButton = new JButton("Choose a File");
 		StringBuilder buffer = new StringBuilder();
+		StringBuilder pageFlowBuffer = new StringBuilder();
+		StringBuilder errorBuffer = new StringBuilder();
+		ArrayList<String> ans = new ArrayList<String>();
 
 		readButton.addActionListener(ev -> {
+			errorMsg = null;
+			
+			BufferedReader buf = null;
+			buffer.delete(0, buffer.length());
+			pageFlowBuffer.delete(0, pageFlowBuffer.length());
+			errorBuffer.delete(0, errorBuffer.length());
+			ans.clear();
 			int returnVal = fc.showOpenDialog(frame);
 			if (returnVal == JFileChooser.APPROVE_OPTION) {
 				file = fc.getSelectedFile();
 				try {
-					@SuppressWarnings("resource")
-					BufferedReader br = new BufferedReader(new FileReader(file));
-					String st;
-					while ((st = br.readLine()) != null) {
-						buffer.append(st).append("\n");
+					// @SuppressWarnings("resource")
+					buf = new BufferedReader(new FileReader(file));
+					String st2 = null;
+					while ((st2 = buf.readLine()) != null) {
+						ans.add(st2);
 					}
 
-					label4.setText("");
-					labelVal4.setText("");
 					label1.setText("Log file selected :: ");
 					labelVal1.setText(file.getCanonicalPath());
-					label2.setText("Enter customer\\account\\partsysid :: ");
-					label3.setText("Enter session id |S:x| :: ");
+					txtVal2.setText("");
+					label4.setText("");
+					labelVal4.setText("");
+					label5.setText("");
+					labelVal5.setText("");
+					label6.setText("");
+					labelVal6.setText("");
+
+					textArea.setText("");
 
 				} catch (Exception e) {
 					label1.setText("");
 					labelVal1.setText("");
-					label2.setText("");
+					//label2.setText("");
+					label4.setText("");
+					labelVal4.setText("");
+					label5.setText("");
+					labelVal5.setText("");
+					label6.setText("");
+					labelVal6.setText("");
 
 					errorMsg = e.getLocalizedMessage();
 					textArea.setText("Error::" + errorMsg);
@@ -114,27 +147,238 @@ public class EcomLogExtractor {
 			} else {
 				label1.setText("");
 				labelVal1.setText("");
+				txtVal2.setText("");
+				label4.setText("");
+				labelVal4.setText("");
+				label5.setText("");
+				labelVal5.setText("");
+				label6.setText("");
+				labelVal6.setText("");
+				file=null;
 				textArea.setText("Operation is CANCELLED :(");
 			}
 		});
 
 		JButton readButton1 = new JButton("Extract log");
 		readButton1.addActionListener(ev -> {
-			BufferedWriter out;
+			errorMsg = null;
+			BufferedWriter out = null;
+			BufferedWriter pageFlowOut=null;
+			BufferedWriter errorOut=null;
+			int cusNumber=0;
+			if(file==null) {
+				errorMsg = "Please select log file \n";
+				textArea.setText(" Error::" + errorMsg);
+			}
+			if(txtVal2.getText().equals("")) {
+				if(errorMsg!=null) {
+				errorMsg = errorMsg+"Please enter customer\\account\\partsysid ";
+				}else {
+					errorMsg = "Please enter customer\\account\\partsysid ";
+				}
+				label4.setText("");
+				labelVal4.setText("");
+				label5.setText("");
+				labelVal5.setText("");
+				label6.setText("");
+				labelVal6.setText("");
+				textArea.setText(" Error::" + errorMsg);
+			} 
+			if(errorMsg==null){
+		      cusNumber= Integer.parseInt(txtVal2.getText());
+			
+			File f = new File(file.getAbsoluteFile().getParent() + "\\" + cusNumber + "-" + file.getName());
+			if(f.exists()){
+				f.delete();
+			}
+			File f1 = new File(file.getAbsoluteFile().getParent() + "\\" + cusNumber + "-PageFlow-" + file.getName());
+			if(f1.exists()){
+				f1.delete();
+			}
+			File f2 = new File(file.getAbsoluteFile().getParent() + "\\" + cusNumber + "-Error-" + file.getName());
+			if(f2.exists()){
+				f2.delete();
+			}
+			
 			try {
-				int cusNumber=Integer.parseInt(txtVal2.getText());
-				String sessionVal = txtVal2.getText();
-				out = new BufferedWriter(new FileWriter(file.getAbsoluteFile().getParent()+ cusNumber+"--" + file.getName()));
-				out.write(buffer.toString());
-				label4.setText("Extracted Log saved at:: ");
-				labelVal4.setText(file.getAbsoluteFile().getParent()+ cusNumber+"--" + file.getName());
-				out.close();
+				label4.setText("");
+				labelVal4.setText("");
+				label5.setText("");
+				labelVal5.setText("");
+				label6.setText("");
+				labelVal6.setText("");
+
+				textArea.setText("");
+				
+				// String sessionVal = txtVal2.getText();
+
+				List<String> sessionId = new ArrayList<String>();
+				SortedSet<String> targetSet = null;
+
+				for (String st : ans) {
+					if (st.contains(txtVal2.getText())) {
+						Pattern p = Pattern.compile(".*\\| *(.*) *\\|.*");
+						Matcher m = p.matcher(st);
+						if (m.find()) {
+							String text = m.group(1);
+
+							if (text.startsWith("S:")) {
+								sessionId.add(text);
+							}
+
+						}
+					}
+
+				}
+				if (sessionId.size() == 0) {
+					errorMsg = "No information available \n Please check brand, date of incident \n and try again";
+					textArea.setText(" Error::" + errorMsg);
+				}
+				/*
+				 * String strVal = null; for (String st1 : ans) { if
+				 * (st1.contains(sessionId.get(0))) { int index = st1.indexOf("Headers for"); if
+				 * (index > 0) { // if(st1.contains(st1.substring(index+13))); //
+				 * System.out.println("**********"+strVal+"***********"); strVal =
+				 * st1.substring(index + 13); break; } }
+				 * 
+				 * }
+				 */
+
+				/*
+				 * for (String st1 : ans) { if (st1.contains(strVal)) { Pattern p =
+				 * Pattern.compile(".*\\| *(.*) *\\|.*"); Matcher m = p.matcher(st1); if
+				 * (m.find()) { String text = m.group(1);
+				 * 
+				 * if (text.startsWith("S:")) { sessionId.add(text); }
+				 * 
+				 * }
+				 * 
+				 * } }
+				 */
+
+				// System.out.println(sessionId);
+				targetSet = new TreeSet<>(sessionId);
+				// System.out.println(targetSet);
+				// String st1;
+				if (errorMsg == null) {
+					for (String setVal : targetSet) {
+
+						for (String st1 : ans) {
+							if (st1.contains(setVal)) {
+								buffer.append(st1).append("\n");
+
+							}
+
+							if (st1.contains(setVal) && st1.contains("RequestLoggingFilter")) {
+								pageFlowBuffer.append(st1).append("\n");
+							}
+
+							if (st1.contains(setVal) && st1.contains("Headers for")) {
+								boolean val = true;
+								int index = ans.indexOf(st1);
+
+								while (val) {
+									Pattern p = Pattern.compile(".*\\| *(.*) *\\|.*");
+									Matcher m = p.matcher(ans.get(++index));
+									if (m.find()) {
+										String text = m.group(1);
+
+										if (text.startsWith("S:")) {
+											val = false;
+										}
+
+									} else {
+										buffer.append(ans.get(index)).append("\n");
+									}
+								}
+							}
+
+							if (st1.contains(setVal)
+									&& st1.contains("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")) {
+								boolean val = true;
+								int index = ans.indexOf(st1);
+
+								while (val) {
+									Pattern p = Pattern.compile(".*\\| *(.*) *\\|.*");
+									Matcher m = p.matcher(ans.get(++index));
+									if (m.find()) {
+										String text = m.group(1);
+
+										if (text.startsWith("S:")) {
+											val = false;
+										}
+
+									} else {
+										buffer.append(ans.get(index)).append("\n");
+									}
+								}
+							}
+
+							if (st1.contains(setVal) && st1.contains("ERROR")) {
+								boolean val = true;
+								int index = ans.indexOf(st1);
+								errorBuffer.append(st1).append("\n");
+
+								while (val) {
+									Pattern p = Pattern.compile(".*\\| *(.*) *\\|.*");
+									Matcher m = p.matcher(ans.get(++index));
+									if (m.find()) {
+										String text = m.group(1);
+
+										if (text.startsWith("S:")) {
+											val = false;
+										}
+
+									} else {
+										buffer.append(ans.get(index)).append("\n");
+										errorBuffer.append(ans.get(index)).append("\n");
+									}
+								}
+							}
+
+						}
+					}
+					
+					
+
+					out = new BufferedWriter(new FileWriter(
+							file.getAbsoluteFile().getParent() + "\\" + cusNumber + "-" + file.getName()));
+					pageFlowOut = new BufferedWriter(new FileWriter(
+							file.getAbsoluteFile().getParent() + "\\" + cusNumber + "-PageFlow-" + file.getName()));
+					errorOut = new BufferedWriter(new FileWriter(
+							file.getAbsoluteFile().getParent() + "\\" + cusNumber + "-Error-" + file.getName()));
+					out.write(buffer.toString());
+					buffer.delete(0, buffer.length());
+
+
+					out.close();
+
+					pageFlowOut.write(pageFlowBuffer.toString());
+					pageFlowBuffer.delete(0, pageFlowBuffer.length());
+					pageFlowOut.close();
+
+					errorOut.write(errorBuffer.toString());
+					errorBuffer.delete(0, errorBuffer.length());
+					errorOut.close();
+
+					label4.setText("Extracted Full Customer Logs saved at:: ");
+					labelVal4.setText(file.getAbsoluteFile().getParent() + "\\" + cusNumber + "-" + file.getName());
+					label5.setText("Extracted Page Flow Logs saved at:: ");
+					labelVal5.setText(
+							file.getAbsoluteFile().getParent() + "\\" + cusNumber + "-PageFlow-" + file.getName());
+					label6.setText("Extracted Error Logs saved at:: ");
+					labelVal6.setText(
+							file.getAbsoluteFile().getParent() + "\\" + cusNumber + "-Error-" + file.getName());
+
+					textArea.setText(" Successfully completed :)");
+				}
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+				errorMsg = e.getLocalizedMessage();
+				textArea.setText("Error::" + errorMsg);
 			}
 
-		});
+			}});
 
 		headingPanel.add(new JLabel("Select log file ::   "), constv);
 		constv.gridx = 1;
@@ -143,41 +387,60 @@ public class EcomLogExtractor {
 		constv.gridy = 2;
 
 		panel.add(label1, constr);
+		constr.fill = GridBagConstraints.HORIZONTAL;
+		
 		constr.gridx = 1;
 		panel.add(labelVal1, constr);
+		constr.fill = GridBagConstraints.HORIZONTAL;
 		constr.gridx = 0;
 		constr.gridy = 1;
 
 		panel.add(label2, constr);
+		constr.fill = GridBagConstraints.HORIZONTAL;
 		constr.gridx = 1;
 		panel.add(txtVal2, constr);
+		constr.fill = GridBagConstraints.HORIZONTAL;
 		constr.gridx = 0;
 		constr.gridy = 2;
 
-		panel.add(label3, constr);
+		panel.add(label4, constr);
+		constr.fill = GridBagConstraints.HORIZONTAL;
 		constr.gridx = 1;
-		panel.add(txtVal3, constr);
+		panel.add(labelVal4, constr);
+		constr.fill = GridBagConstraints.HORIZONTAL;
 		constr.gridx = 0;
 		constr.gridy = 3;
 
-		panel.add(label4, constr);
+		panel.add(label5, constr);
+		constr.fill = GridBagConstraints.HORIZONTAL;
 		constr.gridx = 1;
-		panel.add(labelVal4, constr);
+		panel.add(labelVal5, constr);
+		constr.fill = GridBagConstraints.HORIZONTAL;
 		constr.gridx = 0;
 		constr.gridy = 4;
 
-		panel.add(readButton1, constr);
+		panel.add(label6, constr);
+		constr.fill = GridBagConstraints.HORIZONTAL;
+		constr.gridx = 1;
+		panel.add(labelVal6, constr);
+		constr.fill = GridBagConstraints.HORIZONTAL;
 		constr.gridx = 0;
 		constr.gridy = 5;
+
+		panel.add(readButton1, constr);
+		constr.fill = GridBagConstraints.HORIZONTAL;
+		constr.gridx = 0;
+		constr.gridy = 4;
 
 		mainPanel.add(headingPanel);
 		mainPanel.add(panel);
 		mainPanel.add(scroll);
 		// Add panel to frame
-		frame.add(mainPanel);
+		frame.add(mainPanel,BorderLayout.CENTER);
 
-		frame.pack();
-		frame.setSize(500, 300);
+		// frame.pack();
+		frame.setSize(700, 400);
+		//frame.pack();
 		frame.setVisible(true);
 		frame.setLocationRelativeTo(null);
 	}
@@ -187,4 +450,3 @@ public class EcomLogExtractor {
 	}
 
 }
-
